@@ -28,7 +28,7 @@ const LoginPage = () => {
     useEffect(() => {
     // Redirect if not authenticated
     if (isAuthenticated) {
-        navigate('/');
+        navigate('/home');
         return;
     }
     }, [isAuthenticated, navigate]);
@@ -47,7 +47,7 @@ const LoginPage = () => {
         setError('');
 
         try {
-            const response = await fetch('http://localhost:8080/login', {
+            const response = await fetch('http://localhost:8080/api/login', {
                 method: 'POST',
                 headers: {
                 'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ const LoginPage = () => {
             const data = await response.json();
             console.log('Login successful:', data);
             // Redirect to login page after successful registration
-            navigate('/');
+            // navigate('/home');
             } catch (error) {
             console.error('Login error:', error);
             console.log(document.cookie)
