@@ -51,7 +51,7 @@ const HomePage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:8080/home', {
+      const response = await fetch('http://localhost:8080/api/home', {
         credentials: 'include' // Important for cookies
       });
 

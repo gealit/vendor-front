@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom'
 import {
   Container,
@@ -15,24 +15,28 @@ import {
   AppBar,
   Toolbar,
   Box,
-  Alert
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import AdbIcon from '@mui/icons-material/Adb';
 import IconButton from '@mui/material/IconButton';
 import { useAuth } from '../context/AuthContext';
 
-interface HomeData {
+
+interface MainPageData {
   id: number;
   name: string;
-  email: string;
+  cost: number;
   // Add other fields from your backend
 }
 
 const MainShopPage: React.FC = () => {
-  const [data, setData] = useState<HomeData[]>([]);
+  const [data, setData] = useState<MainPageData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, login, logout, checkAuth } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState('');
 
   useEffect(() => {
     fetchMainPageData();
@@ -43,7 +47,7 @@ const MainShopPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:8080', {
+      const response = await fetch('http://localhost:8080/api', {
         credentials: 'include' // Important for cookies
       });
 
@@ -57,6 +61,7 @@ const MainShopPage: React.FC = () => {
       }
 
       const responseData = await response.json();
+      console.log("log from Main page: ",responseData)
       setData(responseData);
     } catch (err) {
       let errorMessage = 'Failed to fetch data';
@@ -74,10 +79,7 @@ const MainShopPage: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    await checkAuth(); // Verify auth status first
-    if (isAuthenticated) {
-      await fetchMainPageData();
-    }
+    await fetchMainPageData();
   };
 
   if (loading) {
@@ -87,6 +89,18 @@ const MainShopPage: React.FC = () => {
       </Container>
     );
   }
+
+  const handleRowButtonClick = (rowId: number) => {
+    const row = data.find(item => item.id === rowId);
+    setSnackbarMessage(`Товар: "${row?.name}" Добавлен в корзину!`);
+    setSnackbarOpen(true);
+
+    // Your actual download logic here
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
 
   return (
     <Box>
@@ -123,7 +137,7 @@ const MainShopPage: React.FC = () => {
 
       <Container maxWidth="lg" style={{ marginTop: '2rem' }}>
         <Typography variant="h4" gutterBottom>
-          Dashboard
+          Основная доска сайта, доступна не зарегистрированным пользователям.
         </Typography>
 
         {error && (
@@ -150,12 +164,20 @@ const MainShopPage: React.FC = () => {
           sx={{ mb: 2 }}
           disabled={loading}
         >
-          {loading ? <CircularProgress size={24} /> : 'Refresh Data'}
+          {loading ? <CircularProgress size={24} /> : 'Обновить данные'}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleRefresh}
+          sx={{ mb: 2, ml: 2 }}
+          disabled={loading}
+        >
+          {loading ? <CircularProgress size={24} /> : 'Скачать данные'}
         </Button>
 
         <Paper elevation={3} style={{ padding: '2rem', marginBottom: '2rem' }}>
           <Typography variant="h6" gutterBottom>
-            Your Data
+            Тестовые данные для наглядности
           </Typography>
 
           {data.length > 0 ? (
@@ -165,8 +187,9 @@ const MainShopPage: React.FC = () => {
                   <TableRow>
                     <TableCell>ID</TableCell>
                     <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
+                    <TableCell>Cost</TableCell>
                     {/* Add more headers as needed */}
+                    <TableCell align="right"></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -174,8 +197,17 @@ const MainShopPage: React.FC = () => {
                     <TableRow key={row.id}>
                       <TableCell>{row.id}</TableCell>
                       <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.email}</TableCell>
+                      <TableCell>{row.cost}</TableCell>
                       {/* Add more cells as needed */}
+                      <TableCell align="right">
+                      <Button
+                      variant="contained"
+                      onClick={() => handleRowButtonClick(row.id)}
+                      disabled={loading}
+                      /*sx={{ mb: 2, ml: 2 }}*/
+                      >В корзину
+                      </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -184,6 +216,16 @@ const MainShopPage: React.FC = () => {
           ) : (
             <Typography variant="body1">No data available</Typography>
           )}
+            <Snackbar
+              open={snackbarOpen}
+              autoHideDuration={3000}
+              onClose={handleCloseSnackbar}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+              <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
+                {snackbarMessage}
+              </Alert>
+            </Snackbar>
         </Paper>
       </Container>
     </Box>
