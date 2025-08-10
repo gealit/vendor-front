@@ -105,7 +105,7 @@ const HomePage: React.FC = () => {
       <AppBar position="static">
         <Toolbar>
             <IconButton
-            component={RouterLink} to='/'
+            component={RouterLink} to="/"
             size="large"
             edge="start"
             color="inherit"

@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     } finally {
       setIsAuthenticated(false);
-      navigate('/');
+      navigate('');
     }
   };
 
