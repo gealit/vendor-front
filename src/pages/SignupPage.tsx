@@ -13,7 +13,7 @@ interface FormData {
 }
 
 const SignupPage = () => {
-  const { isAuthenticated, login} = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [formData, setFormData] = useState<FormData>({
     username: '',
