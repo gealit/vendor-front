@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('http://gealit.ru:3680/api/refresh', {
+      const response = await fetch('http://gealit.ru:8080/api/refresh', {
         credentials: 'include' // Important for cookies
       });
 
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://gealit.ru:3680/api/logout', {
+      await fetch('http://gealit.ru:8080/api/logout', {
         method: 'GET',
         credentials: 'include' // Important for cookies
       });

@@ -47,30 +47,39 @@ const LoginPage = () => {
         setError('');
 
         try {
-            const response = await fetch('http://gealit.ru:3680/api/login', {
+            console.log('Sending request with credentials: include');
+            const response = await fetch('http://gealit.ru:8080/api/login', {
                 method: 'POST',
                 headers: {
                 'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData),
-                credentials: 'include'
+                credentials: 'include',
+                // mode: 'cors'
+            });
+
+            const data = await response.json();
+
+            console.log('Response headers:', {
+                'headers: ': response.headers,
+                'access-control-allow-origin': response.headers.get('Access-Control-Allow-Origin'),
+                'access-control-allow-credentials': response.headers.get('access-control-allow-credentials'),
+                'Set-Cookie': response.headers.get('Set-Cookie'),
+                'Cookies': response
             });
 
             if (response.ok) {
+                console.log('Login successful:', data);
                 login();
             } else {
-                const errorData = await response.json();
-                console.log('Login error:', errorData);
-                throw new Error(errorData.message || 'Login failed');
+                console.log('Login error:', data);
+                throw new Error(data.message || 'Login failed');
             }
-
-            const data = await response.json();
-            console.log('Login successful:', data);
             // Redirect to login page after successful registration
             // navigate('/home');
             } catch (error) {
-            console.error('Login error:', error);
-            console.log(document.cookie)
+                console.error('Login error:', error);
+                console.log('Current cookies:', document.cookie);
             setError(error instanceof Error ? error.message : 'An unknown error occurred');
             } finally {
             setIsLoading(false);
