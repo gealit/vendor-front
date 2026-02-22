@@ -46,7 +46,7 @@ const SignupPage = () => {
     setError('');
 
     try {
-      const response = await fetch('http://gealit.ru:8080/api/signup', {
+      const response = await fetch('https://gealit.ru/api/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

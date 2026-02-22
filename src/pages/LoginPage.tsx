@@ -48,7 +48,7 @@ const LoginPage = () => {
 
         try {
             console.log('Sending request with credentials: include');
-            const response = await fetch('http://gealit.ru:8080/api/login', {
+            const response = await fetch('https://gealit.ru/api/login', {
                 method: 'POST',
                 headers: {
                 'Content-Type': 'application/json',

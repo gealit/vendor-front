@@ -47,7 +47,7 @@ const MainShopPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://gealit.ru:8080/api', {
+      const response = await fetch('https://gealit.ru/api/main', {
         credentials: 'include' // Important for cookies
       });
 
