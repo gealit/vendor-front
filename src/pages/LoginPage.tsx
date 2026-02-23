@@ -1,152 +1,149 @@
-import { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Link as RouterLink } from 'react-router-dom'
-import {Container, Paper, Avatar, Typography, Box, TextField, Button, Grid, Link} from '@mui/material'
-import LockOutlinedIcon from '@mui/icons-material/LockClockOutlined'
-
-import { useAuth } from '../context/AuthContext'
-import LoginAppBar from '../components/MuiNavbar'
-
-
-interface FormData {
-  // username: string;
-  email: string;
-  password: string;
-}
+import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  Avatar,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Link,
+  Alert,
+} from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockClockOutlined';
+import { Navbar } from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { LoginCredentials } from '../services/auth.service';
 
 const LoginPage = () => {
-    const { isAuthenticated, login} = useAuth();
-    const [formData, setFormData] = useState<FormData>({
-        email: '',
-        password: ''
-    });
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+  const { login } = useAuth();
+  const [formData, setFormData] = useState<LoginCredentials>({
+    email: '',
+    password: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    const navigate = useNavigate();
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    if (error) setError('');
+  };
 
-    useEffect(() => {
-    // Redirect if not authenticated
-    if (isAuthenticated) {
-        navigate('/home');
-        return;
+  const validateForm = (): boolean => {
+    if (!formData.email.trim()) {
+      setError('Введите email');
+      return false;
     }
-    }, [isAuthenticated, navigate]);
+    if (!formData.password.trim()) {
+      setError('Введите пароль');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Введите корректный email');
+      return false;
+    }
+    return true;
+  };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-        ...prev,
-        [name]: value
-        }));
-    };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    const submitCredentials = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
+    if (!validateForm()) return;
 
-        try {
-            console.log('Sending request with credentials: include');
-            const response = await fetch('https://gealit.ru/api/login', {
-                method: 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
-                credentials: 'include',
-                // mode: 'cors'
-            });
+    setIsLoading(true);
+    setError('');
 
-            const data = await response.json();
+    try {
+      await login(formData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка входа');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-            console.log('Response headers:', {
-                'headers: ': response.headers,
-                'access-control-allow-origin': response.headers.get('Access-Control-Allow-Origin'),
-                'access-control-allow-credentials': response.headers.get('access-control-allow-credentials'),
-                'Set-Cookie': response.headers.get('Set-Cookie'),
-                'Cookies': response
-            });
+  return (
+    <>
+      <Navbar />
+      <Container maxWidth="xs">
+        <Paper
+          elevation={3}
+          sx={{
+            marginTop: 8,
+            padding: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
+            <LockOutlinedIcon />
+          </Avatar>
 
-            if (response.ok) {
-                console.log('Login successful:', data);
-                login();
-            } else {
-                console.log('Login error:', data);
-                throw new Error(data.message || 'Login failed');
-            }
-            // Redirect to login page after successful registration
-            // navigate('/home');
-            } catch (error) {
-                console.error('Login error:', error);
-                console.log('Current cookies:', document.cookie);
-            setError(error instanceof Error ? error.message : 'An unknown error occurred');
-            } finally {
-            setIsLoading(false);
-        }
-    };
+          <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
+            Вход в систему
+          </Typography>
 
-    return (
-    <div>
-    <LoginAppBar></LoginAppBar>
-    <Container maxWidth='xs'>
-      <Paper elevation={10} sx={{ marginTop: 8, padding: 2}}>
-        <Avatar sx={{
-            mx: 'auto',
-            bgcolor: 'secondary.main',
-            textAlign: 'center',
-            mb: 1,
-        }}>
-            <LockOutlinedIcon/>
-        </Avatar>
-        <Typography component='h1' variant='h5' sx={{ textAlign: 'center' }}>
-            Введите данные для входа
-        </Typography>
-        {error && (
-        <Typography color="error" sx={{ mt: 2, textAlign: 'center' }}>
-            {error}
-        </Typography>
-        )}
-        <Box component='form' method='post' onSubmit={submitCredentials} noValidate sx={{mt: 1}}>
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
             <TextField
               name="email"
-              placeholder='Введите почту'
-              fullWidth
-              required
-              sx={{ mb: 2 }}
+              label="Email"
+              type="email"
               value={formData.email}
               onChange={handleChange}
-            />
-            <TextField
-              name="password"
-              placeholder='Введите пароль'
               fullWidth
               required
-              type='password'
-              sx={{ mb: 2 }}
+              margin="normal"
+              autoFocus
+              disabled={isLoading}
+            />
+
+            <TextField
+              name="password"
+              label="Пароль"
+              type="password"
               value={formData.password}
               onChange={handleChange}
+              fullWidth
+              required
+              margin="normal"
+              disabled={isLoading}
             />
-            <Button type='submit' variant='contained' fullWidth sx={{ mt: 1 }} disabled={isLoading}>
-                {isLoading ? 'Загрузка...' : 'Войти'}
-            </Button>
-        </Box>
-        <Grid container justifyContent='space-between' sx={{ mt: 1 }}>
-            <Grid>
-                <Link component={RouterLink} to='/forgot'>
-                    Забыли пароль
-                </Link>
-            </Grid>
-            <Grid>
-                <Link component={RouterLink} to='/signup'>
-                    Регистрация
-                </Link>
-            </Grid>
-        </Grid>
-      </Paper>
-    </Container>
-    </div>
-    )
-}
 
-export default LoginPage
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Вход...' : 'Войти'}
+            </Button>
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+              <Link component={RouterLink} to="/forgot" variant="body2">
+                Забыли пароль?
+              </Link>
+              <Link component={RouterLink} to="/signup" variant="body2">
+                Нет аккаунта? Регистрация
+              </Link>
+            </Box>
+          </Box>
+        </Paper>
+      </Container>
+    </>
+  );
+};
+
+export default LoginPage;
