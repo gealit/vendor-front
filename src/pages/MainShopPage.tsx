@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link as RouterLink } from 'react-router-dom'
 import {
   Container,
   Typography,
@@ -12,132 +11,66 @@ import {
   TableHead,
   TableRow,
   Button,
-  AppBar,
-  Toolbar,
   Box,
   Alert,
   Snackbar,
 } from '@mui/material';
-import AdbIcon from '@mui/icons-material/Adb';
-import IconButton from '@mui/material/IconButton';
 import { useAuth } from '../context/AuthContext';
-
-
-interface MainPageData {
-  id: number;
-  name: string;
-  cost: number;
-  // Add other fields from your backend
-}
+import { Navbar } from '../components/Navbar';
+import { mainService, MainPageData } from '../services/main.service';
+import { ApiError } from '../services/api.service';
 
 const MainShopPage: React.FC = () => {
   const [data, setData] = useState<MainPageData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
   const { isAuthenticated, logout } = useAuth();
-  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
-  const [snackbarMessage, setSnackbarMessage] = React.useState('');
 
   useEffect(() => {
     fetchMainPageData();
-  }, [isAuthenticated]);
+  }, []); // Убрали зависимость от isAuthenticated, чтобы избежать лишних запросов
 
   const fetchMainPageData = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch('https://gealit.ru/api/main', {
-        credentials: 'include' // Important for cookies
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // If unauthorized, logout and redirect
-          await logout();
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      console.log("log from Main page: ",responseData)
+      const responseData = await mainService.getMainData();
       setData(responseData);
     } catch (err) {
-      let errorMessage = 'Failed to fetch data';
-      if (err instanceof Error) {
-        errorMessage = err.message;
+      if (err instanceof ApiError && err.status === 401) {
+        await logout();
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
       }
-      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleRefresh = async () => {
-    await fetchMainPageData();
+  const handleAddToCart = (rowId: number) => {
+    const row = data.find(item => item.id === rowId);
+    setSnackbarMessage(`Товар: "${row?.name}" добавлен в корзину!`);
+    setSnackbarOpen(true);
   };
 
   if (loading) {
     return (
-      <Container maxWidth="md" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Container maxWidth="md" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Container>
     );
   }
 
-  const handleRowButtonClick = (rowId: number) => {
-    const row = data.find(item => item.id === rowId);
-    setSnackbarMessage(`Товар: "${row?.name}" Добавлен в корзину!`);
-    setSnackbarOpen(true);
-
-    // Your actual download logic here
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
-  };
-
   return (
     <Box>
-      <AppBar position="static">
-        <Toolbar>
-          {isAuthenticated ? (
-            <IconButton
-            component={RouterLink} to='/home'
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            sx={{ mr: 2 }}
-          >
-            <AdbIcon/>
-          </IconButton>
-          ) : (
-            <></>
-          )}
+      <Navbar title="Главная страница" />
 
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Welcome to Main Page
-          </Typography>
-          {isAuthenticated ? (
-            <Button color="inherit" onClick={handleLogout}>Logout</Button>
-          ) : (
-            <>
-            <Button color="inherit" component={RouterLink} to='/login'>Войти</Button>
-            <Button color="inherit" component={RouterLink} to='/signup'>Регистрация</Button>
-            </>
-          )}
-        </Toolbar>
-      </AppBar>
-
-      <Container maxWidth="lg" style={{ marginTop: '2rem' }}>
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Основная доска сайта, доступна не зарегистрированным пользователям.
+          Основная доска сайта, доступна не зарегистрированным пользователям
         </Typography>
 
         {error && (
@@ -145,12 +78,8 @@ const MainShopPage: React.FC = () => {
             severity="error"
             sx={{ mb: 2 }}
             action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={handleRefresh}
-              >
-                Retry
+              <Button color="inherit" size="small" onClick={fetchMainPageData}>
+                Повторить
               </Button>
             }
           >
@@ -158,24 +87,25 @@ const MainShopPage: React.FC = () => {
           </Alert>
         )}
 
-        <Button
-          variant="contained"
-          onClick={handleRefresh}
-          sx={{ mb: 2 }}
-          disabled={loading}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Обновить данные'}
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleRefresh}
-          sx={{ mb: 2, ml: 2 }}
-          disabled={loading}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Скачать данные'}
-        </Button>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            onClick={fetchMainPageData}
+            disabled={loading}
+            sx={{ mr: 2 }}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Обновить данные'}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={fetchMainPageData}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Скачать данные'}
+          </Button>
+        </Box>
 
-        <Paper elevation={3} style={{ padding: '2rem', marginBottom: '2rem' }}>
+        <Paper elevation={3} sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Тестовые данные для наглядности
           </Typography>
@@ -188,7 +118,6 @@ const MainShopPage: React.FC = () => {
                     <TableCell>ID</TableCell>
                     <TableCell>Name</TableCell>
                     <TableCell>Cost</TableCell>
-                    {/* Add more headers as needed */}
                     <TableCell align="right"></TableCell>
                   </TableRow>
                 </TableHead>
@@ -198,15 +127,13 @@ const MainShopPage: React.FC = () => {
                       <TableCell>{row.id}</TableCell>
                       <TableCell>{row.name}</TableCell>
                       <TableCell>{row.cost}</TableCell>
-                      {/* Add more cells as needed */}
                       <TableCell align="right">
-                      <Button
-                      variant="contained"
-                      onClick={() => handleRowButtonClick(row.id)}
-                      disabled={loading}
-                      /*sx={{ mb: 2, ml: 2 }}*/
-                      >В корзину
-                      </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleAddToCart(row.id)}
+                        >
+                          В корзину
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -214,19 +141,20 @@ const MainShopPage: React.FC = () => {
               </Table>
             </TableContainer>
           ) : (
-            <Typography variant="body1">No data available</Typography>
+            <Typography variant="body1">Нет данных</Typography>
           )}
-            <Snackbar
-              open={snackbarOpen}
-              autoHideDuration={3000}
-              onClose={handleCloseSnackbar}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            >
-              <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
-                {snackbarMessage}
-              </Alert>
-            </Snackbar>
         </Paper>
+
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   );

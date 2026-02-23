@@ -1,36 +1,31 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import LoginAppBar from '../components/MuiNavbar'
-import {Container, Paper, Avatar, Typography, Box, TextField, Button, Grid, Link} from '@mui/material'
-import LockOutlinedIcon from '@mui/icons-material/LockClockOutlined'
-import { useAuth } from '../context/AuthContext'
-import { Link as RouterLink } from 'react-router-dom'
-
-interface FormData {
-  username: string;
-  email: string;
-  password: string;
-}
+import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  Avatar,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Link,
+  Alert,
+} from '@mui/material';
+import LockOutlinedIcon from '@mui/icons-material/LockClockOutlined';
+import { Navbar } from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { SignupCredentials } from '../services/auth.service';
 
 const SignupPage = () => {
-  const { isAuthenticated } = useAuth();
-
-  const [formData, setFormData] = useState<FormData>({
+  const { signup } = useAuth();
+  const [formData, setFormData] = useState<SignupCredentials>({
     username: '',
     email: '',
-    password: ''
+    password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  useEffect(() => {
-  // Redirect if not authenticated
-  if (isAuthenticated) {
-      navigate('/');
-      return;
-  }
-  }, [isAuthenticated, navigate]);
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,119 +33,145 @@ const SignupPage = () => {
       ...prev,
       [name]: value
     }));
+    if (error) setError('');
   };
 
-  const submitCredentials = async (e: React.FormEvent) => {
+  const validateForm = (): boolean => {
+    if (!formData.username.trim()) {
+      setError('Введите имя пользователя');
+      return false;
+    }
+    if (formData.username.length < 3) {
+      setError('Имя пользователя должно содержать минимум 3 символа');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('Введите email');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Введите корректный email');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Пароль должен содержать минимум 6 символов');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
     setIsLoading(true);
     setError('');
+    setSuccess('');
 
     try {
-      const response = await fetch('https://gealit.ru/api/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
-      }
-
-      const data = await response.json();
-      console.log('Registration successful:', data);
-      // Redirect to login page after successful registration
-      navigate('/login');
-    } catch (error) {
-      console.error('Registration error:', error);
-      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      await signup(formData);
+      setSuccess('Регистрация успешна! Перенаправление на страницу входа...');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка регистрации');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div>
-      <LoginAppBar />
-      <Container maxWidth='xs'>
-        <Paper elevation={10} sx={{ marginTop: 8, padding: 2 }}>
-          <Avatar sx={{
-              mx: 'auto',
-              bgcolor: 'secondary.main',
-              textAlign: 'center',
-              mb: 1,
-          }}>
-              <LockOutlinedIcon />
+    <>
+      <Navbar />
+      <Container maxWidth="xs">
+        <Paper
+          elevation={3}
+          sx={{
+            marginTop: 8,
+            padding: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
+            <LockOutlinedIcon />
           </Avatar>
-          <Typography component='h1' variant='h5' sx={{ textAlign: 'center' }}>
-              Введите данные для регистрации
+
+          <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
+            Регистрация
           </Typography>
 
           {error && (
-            <Typography color="error" sx={{ mt: 2, textAlign: 'center' }}>
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
               {error}
-            </Typography>
+            </Alert>
           )}
 
-          <Box component='form' method='post' onSubmit={submitCredentials} noValidate sx={{ mt: 1 }}>
+          {success && (
+            <Alert severity="success" sx={{ width: '100%', mb: 2 }}>
+              {success}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
             <TextField
               name="username"
-              placeholder='Введите username'
-              fullWidth
-              required
-              autoFocus
-              sx={{ mb: 2 }}
+              label="Имя пользователя"
               value={formData.username}
               onChange={handleChange}
+              fullWidth
+              required
+              margin="normal"
+              autoFocus
+              disabled={isLoading}
+              helperText="Минимум 3 символа"
             />
+
             <TextField
               name="email"
-              placeholder='Введите почту'
-              fullWidth
-              required
-              sx={{ mb: 2 }}
+              label="Email"
+              type="email"
               value={formData.email}
               onChange={handleChange}
-            />
-            <TextField
-              name="password"
-              placeholder='Введите пароль'
               fullWidth
               required
-              type='password'
-              sx={{ mb: 2 }}
+              margin="normal"
+              disabled={isLoading}
+            />
+
+            <TextField
+              name="password"
+              label="Пароль"
+              type="password"
               value={formData.password}
               onChange={handleChange}
-            />
-            <Button
-              type='submit'
-              variant='contained'
               fullWidth
-              sx={{ mt: 1 }}
+              required
+              margin="normal"
+              helperText="Минимум 6 символов"
+              disabled={isLoading}
+            />
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
               disabled={isLoading}
             >
-              {isLoading ? 'Загрузка...' : 'Зарегистрироваться'}
+              {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
             </Button>
-          </Box>
 
-          <Grid container justifyContent='space-between' sx={{ mt: 1 }}>
-            <Grid>
-                <Link component={RouterLink} to='/forgot'>
-                    Забыли пароль
-                </Link>
-            </Grid>
-            <Grid>
-                <Link component={RouterLink} to='/login'>
-                    Войти
-                </Link>
-            </Grid>
-          </Grid>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Link component={RouterLink} to="/login" variant="body2">
+                Уже есть аккаунт? Войти
+              </Link>
+            </Box>
+          </Box>
         </Paper>
       </Container>
-    </div>
+    </>
   );
 };
 
-export default SignupPage
+export default SignupPage;

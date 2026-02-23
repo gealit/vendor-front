@@ -1,188 +1,210 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Link as RouterLink } from 'react-router-dom'
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Button,
-  AppBar,
-  Toolbar,
   Box,
-  Alert
+  ToggleButton,
+  ToggleButtonGroup,
+  Paper,
+  Alert,
 } from '@mui/material';
-import AdbIcon from '@mui/icons-material/Adb';
-import IconButton from '@mui/material/IconButton';
-import { useNavigate } from 'react-router-dom';
+import { Navbar } from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import { Loader } from '../components/Loader';
+import { ErrorAlert } from '../components/ErrorAlert';
+import { SalesTable } from '../components/SalesTable';
+import { StoreTable } from '../components/StoreTable';
+import { salesService } from '../services/sales.service';
+import { storehouseService } from '../services/storehouse.service';
+import { Sale, TableItem } from '../types/inventory.types';
 
-interface HomeData {
-  id: number;
-  name: string;
-  email: string;
-  // Add other fields from your backend
-}
+type TabType = 'sales' | 'stock' | 'archive';
 
 const HomePage: React.FC = () => {
-  const [data, setData] = useState<HomeData[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<TabType>('sales');
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [stock, setStock] = useState<TableItem[]>([]);
+  const [archive, setArchive] = useState<TableItem[]>([]);
+  const [loading, setLoading] = useState({
+    sales: false,
+    stock: false,
+    archive: false
+  });
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, login, logout, checkAuth } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const loadSales = async () => {
+    try {
+      setLoading(prev => ({ ...prev, sales: true }));
+      const data = await salesService.getSales();
+      setSales(data);
+    } catch (err) {
+      setError('Ошибка загрузки продаж');
+    } finally {
+      setLoading(prev => ({ ...prev, sales: false }));
+    }
+  };
+
+  const loadStock = async () => {
+    try {
+      setLoading(prev => ({ ...prev, stock: true }));
+      const data = await storehouseService.getStoreItems();
+      setStock(data);
+    } catch (err) {
+      setError('Ошибка загрузки склада');
+    } finally {
+      setLoading(prev => ({ ...prev, stock: false }));
+    }
+  };
+
+  const loadArchive = async () => {
+    try {
+      setLoading(prev => ({ ...prev, archive: true }));
+      const data = await storehouseService.getArchivedItems();
+      setArchive(data);
+    } catch (err) {
+      setError('Ошибка загрузки архива');
+    } finally {
+      setLoading(prev => ({ ...prev, archive: false }));
+    }
+  };
 
   useEffect(() => {
-    // Redirect if not authenticated
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
+    loadSales();
+    loadStock();
+    loadArchive();
+  }, []);
+
+  const handleTabChange = (event: React.MouseEvent<HTMLElement>, newTab: TabType) => {
+    if (newTab !== null) {
+      setActiveTab(newTab);
     }
+  };
 
-    fetchHomeData();
-  }, [isAuthenticated, navigate]);
-
-  const fetchHomeData = async () => {
+  const handleAddSale = async (data: any) => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('https://gealit.ru/api/home', {
-        credentials: 'include' // Important for cookies
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // If unauthorized, logout and redirect
-          await logout();
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      setData(responseData);
+      const newSale = await salesService.createSale(data);
+      setSales(prev => [newSale, ...prev]);
     } catch (err) {
-      let errorMessage = 'Failed to fetch data';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+      setError('Ошибка при добавлении продажи');
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleRefresh = async () => {
-    await checkAuth(); // Verify auth status first
-    if (isAuthenticated) {
-      await fetchHomeData();
+  const handleAddStoreItem = async (data: any) => {
+    try {
+      const newItem = await storehouseService.createStoreItem(data);
+      setStock(prev => [newItem, ...prev]);
+    } catch (err) {
+      setError('Ошибка при добавлении товара');
     }
   };
 
-  if (!isAuthenticated) {
-    return null; // Or a redirect component
-  }
+  const handleEditStoreItem = async (id: string, data: any) => {
+    try {
+      const updatedItem = await storehouseService.updateStoreItem(id, data);
+      setStock(prev => prev.map(item => item.id === id ? updatedItem : item));
+    } catch (err) {
+      setError('Ошибка при обновлении товара');
+    }
+  };
 
-  if (loading) {
-    return (
-      <Container maxWidth="md" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
+  const handleMoveToArchive = async (id: string) => {
+    try {
+      await storehouseService.moveToArchive(id);
+      // Обновляем данные после перемещения
+      loadStock();
+      loadArchive();
+    } catch (err) {
+      setError('Ошибка при перемещении в архив');
+    }
+  };
+
+  const handleMoveFromArchive = async (id: string) => {
+    try {
+      await storehouseService.moveFromArchive(id);
+      // Обновляем данные после перемещения
+      loadStock();
+      loadArchive();
+    } catch (err) {
+      setError('Ошибка при восстановлении из архива');
+    }
+  };
 
   return (
     <Box>
-      <AppBar position="static">
-        <Toolbar>
-            <IconButton
-            component={RouterLink} to="/"
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            sx={{ mr: 2 }}
-          >
-            <AdbIcon/>
-          </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Welcome to Your Stash House!
-          </Typography>
-          <Button color="inherit" onClick={handleLogout}>Logout</Button>
-        </Toolbar>
-      </AppBar>
+      <Navbar title="Личный кабинет" />
 
-      <Container maxWidth="lg" style={{ marginTop: '2rem' }}>
-        <Typography variant="h4" gutterBottom>
-          Dashboard
+      <Container maxWidth="xl" sx={{ mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          {/* <Typography variant="h4">
+            Добро пожаловать в личный кабинет!
+          </Typography> */}
+
+          <ToggleButtonGroup
+            value={activeTab}
+            exclusive
+            onChange={handleTabChange}
+            aria-label="view type"
+            size="large"
+          >
+            <ToggleButton value="sales" aria-label="sales">
+              Продажи
+            </ToggleButton>
+            <ToggleButton value="stock" aria-label="stock">
+              Склад
+            </ToggleButton>
+            <ToggleButton value="archive" aria-label="archive">
+              Архив
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        <Typography variant="subtitle1" color="textSecondary" sx={{ mb: 4 }}>
+          {user ? `Вы вошли как: ${user.email}` : 'Защищенная страница'}
         </Typography>
 
         {error && (
-          <Alert
-            severity="error"
-            sx={{ mb: 2 }}
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={handleRefresh}
-              >
-                Retry
-              </Button>
-            }
-          >
-            {error}
-          </Alert>
+          <ErrorAlert
+            message={error}
+            onRetry={() => {
+              setError(null);
+              if (activeTab === 'sales') loadSales();
+              else if (activeTab === 'stock') loadStock();
+              else loadArchive();
+            }}
+          />
         )}
 
-        <Button
-          variant="contained"
-          onClick={handleRefresh}
-          sx={{ mb: 2 }}
-          disabled={loading}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Refresh Data'}
-        </Button>
+        <Paper sx={{ p: 3 }}>
+          {activeTab === 'sales' && (
+            <SalesTable
+              data={sales}
+              loading={loading.sales}
+              onAdd={handleAddSale}
+            />
+          )}
 
-        <Paper elevation={3} style={{ padding: '2rem', marginBottom: '2rem' }}>
-          <Typography variant="h6" gutterBottom>
-            Your Data
-          </Typography>
+          {activeTab === 'stock' && (
+            <StoreTable
+              data={stock}
+              loading={loading.stock}
+              type="stock"
+              onAdd={handleAddStoreItem}
+              onEdit={handleEditStoreItem}
+              onMoveToArchive={handleMoveToArchive}
+            />
+          )}
 
-          {data.length > 0 ? (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
-                    {/* Add more headers as needed */}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.id}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.email}</TableCell>
-                      {/* Add more cells as needed */}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ) : (
-            <Typography variant="body1">No data available</Typography>
+          {activeTab === 'archive' && (
+            <StoreTable
+              data={archive}
+              loading={loading.archive}
+              type="archive"
+              onAdd={handleAddStoreItem}
+              onEdit={handleEditStoreItem}
+              onMoveToArchive={handleMoveToArchive}
+              onMoveFromArchive={handleMoveFromArchive}
+            />
           )}
         </Paper>
       </Container>

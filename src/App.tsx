@@ -1,25 +1,25 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
-import { BrowserRouter as  Router, Routes, Route} from 'react-router-dom'
-
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
+// Pages
 import MainShopPage from './pages/MainShopPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
-
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Routes>
+          {/* Публичные маршруты */}
+          <Route path="/main" element={<MainShopPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/" element={<MainShopPage />} />
+
+          {/* Защищенные маршруты */}
           <Route
             path="/home"
             element={
@@ -28,11 +28,13 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Add other protected routes similarly */}
+
+          {/* 404 - можно добавить отдельную страницу */}
+          <Route path="*" element={<MainShopPage />} />
         </Routes>
       </AuthProvider>
     </Router>
-  )
+  );
 }
 
 export default App;
